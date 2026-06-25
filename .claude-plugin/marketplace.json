@@ -1,0 +1,14 @@
+{
+  "name": "ainvis-local-marketplace",
+  "owner": {
+    "name": "XPAND K.K.",
+    "url": "https://xpand.co.jp"
+  },
+  "plugins": [
+    {
+      "name": "ainvis-local",
+      "source": "./",
+      "description": "Your five-executive founding team, on your own machine. Discuss strategy with a board of COO/CTO/CFO/CMO/CXO advisors, entirely from local files."
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "name": "ainvis-local",
+  "version": "1.0.0",
+  "description": "Ainvis Local — your five-executive founding team, on your own machine. A board of COO/CTO/CFO/CMO/CXO advisors you discuss strategy with, entirely from local files. Works with Claude Code.",
+  "author": {
+    "name": "XPAND K.K.",
+    "url": "https://xpand.co.jp"
+  },
+  "homepage": "https://xpand.co.jp",
+  "license": "Apache-2.0"
+}

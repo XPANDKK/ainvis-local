@@ -1,0 +1,437 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">
+<title>Ainvis Local — Boardroom</title>
+<style>
+  /* ── design tokens (parity with the cloud edition) ── */
+  :root{
+    --bg:#090912; --surface:#10101c; --surface-2:#17172a; --border:#252540;
+    --accent:#6366f1; --accent-dim:rgba(99,102,241,0.12);
+    --text:#e4e4f0; --text-dim:#5e5e80; --yellow:#eab308; --cyan:#22d3ee; --radius:8px;
+    /* per-persona avatar colours */
+    --wei:#6366f1; --dev:#10b981; --james:#f59e0b; --nova:#ec4899; --zola:#8b5cf6;
+  }
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+
+  /* ── Futura mixed-font principle: Futura first + CJK.
+     Fonts are served from the Ainvis CDN (https://ainvis.ai/static/fonts) and are
+     NOT bundled in this repo (no redistribution). Offline → system-font fallback.
+     NOTE: the ?v= query string is required for the CDN to return the CORS
+     (Access-Control-Allow-Origin) header. ── */
+  @font-face{font-family:'Futura';font-weight:400;font-display:swap;src:url('https://ainvis.ai/static/fonts/TT0142M.woff2?v=1') format('woff2')}
+  @font-face{font-family:'Futura';font-weight:700;font-display:swap;src:url('https://ainvis.ai/static/fonts/TT0144M.woff2?v=1') format('woff2')}
+  @font-face{font-family:'Source Han Sans JP';font-weight:400;font-display:swap;src:url('https://ainvis.ai/static/fonts/SourceHanSansJP-Regular.woff2?v=1') format('woff2')}
+  @font-face{font-family:'Source Han Sans SC';font-weight:400;font-display:swap;src:url('https://ainvis.ai/static/fonts/SourceHanSansCN-Regular.woff2?v=1') format('woff2')}
+  @font-face{font-family:'Source Han Sans TC';font-weight:400;font-display:swap;src:url('https://ainvis.ai/static/fonts/SourceHanSansTW-Regular.woff2?v=1') format('woff2')}
+  @font-face{font-family:'Source Han Sans KR';font-weight:400;font-display:swap;src:url('https://ainvis.ai/static/fonts/SourceHanSansKR-Regular.woff2?v=1') format('woff2')}
+  @font-face{font-family:'Source Han Sans HK';font-weight:400;font-display:swap;src:url('https://ainvis.ai/static/fonts/SourceHanSansHK-Regular.woff2?v=1') format('woff2')}
+  html{font-family:'Futura','Century Gothic','Trebuchet MS',sans-serif;-webkit-font-smoothing:antialiased}
+  body[data-lang="ja"]{font-family:'Futura','Source Han Sans JP','Yu Gothic','Hiragino Kaku Gothic ProN',sans-serif}
+  body[data-lang="zh-cn"]{font-family:'Futura','Source Han Sans SC','Microsoft YaHei',sans-serif}
+  body[data-lang="zh-tw"]{font-family:'Futura','Source Han Sans TC','Microsoft JhengHei',sans-serif}
+  body[data-lang="zh-hk"]{font-family:'Futura','Source Han Sans HK','Microsoft JhengHei',sans-serif}
+  body[data-lang="ko"]{font-family:'Futura','Source Han Sans KR','Malgun Gothic',sans-serif}
+  /* Latin / other scripts: Futura first, system fallback (productisation adds self-hosted Thai/Arabic/Devanagari) */
+
+  body{background:var(--bg);color:var(--text);min-height:100vh;display:flex;flex-direction:column}
+
+  /* ── topbar ── */
+  .topbar{display:flex;align-items:center;gap:12px;padding:12px 24px;border-bottom:1px solid var(--border);background:var(--surface)}
+  .topbar-logo{display:flex;align-items:center;text-decoration:none}
+  .logo-img{height:28px;width:auto;display:block}
+  .badge{font-size:10px;padding:3px 8px;border-radius:20px;font-weight:600;letter-spacing:.5px;
+    background:rgba(234,179,8,0.15);color:var(--yellow);border:1px solid rgba(234,179,8,0.3)}
+  /* LOCAL edition badge in cyan */
+  .badge--local{background:rgba(34,211,238,0.15);color:var(--cyan);border-color:rgba(34,211,238,0.35)}
+  .topic{color:var(--text-dim);font-size:13px;margin-left:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .topbar-right{margin-left:auto}
+  .lang-select{font-size:12px;padding:4px 8px;border:1px solid rgba(255,255,255,0.1);border-radius:6px;
+    background:transparent;color:var(--text);cursor:pointer;outline:none;font-family:inherit;max-width:200px}
+  .lang-select:hover,.lang-select:focus{border-color:var(--accent)}
+  /* native dropdown list inherits page theme (otherwise OS-default light list) */
+  .lang-select option,.lang-select optgroup{background:var(--surface-2);color:var(--text)}
+
+  /* ── thin upsell banner (enterprise → Ainvis): light grey, black text ── */
+  .promo{display:block;text-align:center;padding:6px 16px;font-size:11.5px;line-height:1.4;
+    text-decoration:none;color:#1a1a1a;background:#d4d6db;border-bottom:1px solid var(--border)}
+  .promo:hover{background:#e3e5ea;text-decoration:underline}
+
+  /* ── seats ── */
+  .seats{display:flex;gap:8px;padding:10px 24px;flex-wrap:wrap;border-bottom:1px solid var(--border)}
+  .seat{display:flex;align-items:center;gap:8px;padding:5px 10px;border:1px solid var(--border);
+    border-radius:999px;opacity:1;transition:.2s;background:var(--surface)}
+  .seat.dim{opacity:.45}
+  .seat.active{border-color:var(--yellow);box-shadow:0 0 0 2px rgba(234,179,8,.16)}
+  .avatar{width:34px;height:34px;border-radius:50%;border:2px solid var(--border);
+    display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:700;color:#fff;flex-shrink:0}
+  .avatar--coo-wei{background:var(--wei);border-color:var(--wei)}
+  .avatar--cto-dev{background:var(--dev);border-color:var(--dev)}
+  .avatar--cfo-james{background:var(--james);border-color:var(--james)}
+  .avatar--cmo-nova{background:var(--nova);border-color:var(--nova)}
+  .avatar--cxo-zola{background:var(--zola);border-color:var(--zola)}
+  .avatar--user{background:#52525b;border-color:#52525b}
+  .avatar svg{width:16px;height:16px;stroke:#fff;fill:none;stroke-width:2}
+  .seat .who{font-size:12px;line-height:1.15}
+  .seat .who small{display:block;color:var(--text-dim);font-size:10px;letter-spacing:.3px}
+
+  main{padding:18px 16px;max-width:820px;margin:0 auto;width:100%;display:flex;flex-direction:column;gap:10px;flex:1}
+  /* Each turn = three tiers stacked: head (avatar + name·role), bubble, time — like the cloud edition. */
+  .turn{display:flex;flex-direction:column;gap:5px;animation:fade .25s ease}
+  @keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1}}
+  .turn-head{display:flex;align-items:center;gap:8px}
+  .turn-head .who{font-size:12px;line-height:1.2}
+  .turn-head .who .nm{font-weight:600}
+  .turn-head .who .rl{color:var(--text-dim);font-size:11px;margin-left:6px}
+  .bubble{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:9px 13px;font-size:14px;line-height:1.55}
+  .bubble .body{white-space:pre-wrap}
+  .turn-time{font-size:11px;color:var(--text-dim)}
+  /* The founder's own turns: right-aligned (mirrors to the left in RTL via align-items + dir), purple bubble, white text. */
+  .turn--user{align-items:flex-end}
+  .turn--user .turn-head{flex-direction:row-reverse}
+  .turn--user .turn-head .who .rl{margin-left:0;margin-right:6px}
+  .turn--user .bubble{background:var(--accent);border-color:var(--accent);color:#fff;max-width:82%}
+  /* "thinking…" indicator shown while a subagent is composing (turn body === @@THINKING@@) */
+  .dots{display:inline-flex;gap:5px;align-items:center;padding:3px 1px}
+  .dots span{width:6px;height:6px;border-radius:50%;background:var(--text-dim);animation:blink 1.2s infinite ease-in-out}
+  .dots span:nth-child(2){animation-delay:.2s}
+  .dots span:nth-child(3){animation-delay:.4s}
+  @keyframes blink{0%,80%,100%{opacity:.25;transform:translateY(0)}40%{opacity:1;transform:translateY(-2px)}}
+  .empty{color:var(--text-dim);text-align:center;padding:3rem 1rem;font-size:14px;line-height:1.6}
+  .empty code{background:var(--surface-2);padding:2px 6px;border-radius:5px}
+  /* copyable Claude Code command palette — no typing needed */
+  .cmds{display:flex;flex-direction:column;gap:6px;margin-top:16px;align-items:center}
+  /* copyable Claude Code commands — light grey + black, matching the official site */
+  .cmd-chip{display:flex;align-items:center;gap:8px;background:#d4d6db;
+    border:1px solid #c4c6cb;border-radius:8px;padding:4px 4px 4px 11px}
+  .cmd-chip code{font-size:12px;color:#1a1a1a;font-family:ui-monospace,Menlo,Consolas,monospace;background:none;padding:0}
+  .copy{background:#fff;border:1px solid #9a9ca1;color:#1a1a1a;cursor:pointer;
+    font-size:11px;padding:3px 9px;border-radius:6px;font-family:inherit}
+  .copy:hover{border-color:#1a1a1a;color:#000}
+  .copy.done{color:#15803d;border-color:#15803d}
+  footer{color:var(--text-dim);text-align:center;font-size:11px;padding:10px}
+  .foot-meta{margin-top:6px;font-size:10.5px;text-align:right}
+  .foot-meta a{color:var(--text-dim);text-decoration:none}
+  .foot-meta a:hover{text-decoration:underline}
+  .foot-tm{text-align:center;margin-top:6px;font-size:10px;opacity:.7;line-height:1.5}
+  button{background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:7px;
+    padding:5px 10px;font-size:12px;cursor:pointer;font-family:inherit}
+  button:hover{border-color:var(--accent)}
+  body[dir="rtl"] .topbar-right{margin-left:0;margin-right:auto}
+</style>
+</head>
+<body data-lang="en">
+<div class="topbar">
+  <a href="https://xpand.co.jp" class="topbar-logo"><img src="/assets/ainvis-logo.svg" alt="Ainvis" class="logo-img" height="28"></a>
+  <span class="badge badge--local">LOCAL</span>
+  <span class="topic" id="topic"></span>
+  <div class="topbar-right">
+    <select class="lang-select" id="lang-select" aria-label="Language">
+      <!-- Recommended set first (own order, native labels). Remaining languages
+           follow, each shown in its OWN language, sorted by the ascending
+           alphabetical order of their ENGLISH name. No tier dividers
+           (quality tiering is Claude-side management, not a user concern). -->
+      <option value="en">English</option>
+      <option value="ja">日本語</option>
+      <option value="zh-cn">简体中文</option>
+      <option value="zh-tw">繁體中文</option>
+      <option value="es">Español</option>
+      <option value="ko">한국어</option>
+      <option value="id">Bahasa Indonesia</option>
+      <option value="de">Deutsch</option>
+      <option value="fr">Français</option>
+      <option value="it">Italiano</option>
+      <option value="pt">Português</option>
+      <option value="hi">हिन्दी</option>
+      <option value="ar">العربية</option>
+      <option value="bn">বাংলা</option>
+      <option value="af">Afrikaans</option>
+      <option value="am">አማርኛ</option>
+      <option value="bg">Български</option>
+      <option value="zh-hk">繁體中文（香港）</option>
+      <option value="cs">Čeština</option>
+      <option value="da">Dansk</option>
+      <option value="nl">Nederlands</option>
+      <option value="fil">Filipino</option>
+      <option value="fi">Suomi</option>
+      <option value="el">Ελληνικά</option>
+      <option value="gu">ગુજરાતી</option>
+      <option value="ha">Hausa</option>
+      <option value="kn">ಕನ್ನಡ</option>
+      <option value="ms">Bahasa Melayu</option>
+      <option value="ml">മലയാളം</option>
+      <option value="mr">मराठी</option>
+      <option value="nb">Norsk</option>
+      <option value="pl">Polski</option>
+      <option value="pa">ਪੰਜਾਬੀ</option>
+      <option value="sw">Kiswahili</option>
+      <option value="sv">Svenska</option>
+      <option value="ta">தமிழ்</option>
+      <option value="te">తెలుగు</option>
+      <option value="th">ภาษาไทย</option>
+      <option value="tr">Türkçe</option>
+      <option value="uk">Українська</option>
+      <option value="ur">اردو</option>
+      <option value="vi">Tiếng Việt</option>
+      <option value="yo">Yorùbá</option>
+      <option value="zu">isiZulu</option>
+    </select>
+  </div>
+</div>
+
+<a class="promo" id="promo" href="https://ainvis.ai" target="_blank" rel="noopener"><span id="promo-text"></span></a>
+<div class="seats" id="seats"></div>
+<main id="log"><div class="empty" id="empty"><div id="empty-text"></div><div class="cmds" id="cmds"></div></div></main>
+<footer>
+  <div><button id="popout">⤢ <span id="popout-label"></span></button>
+  <a id="history" href="/minutes/" target="_blank" rel="noopener" style="color:var(--text-dim);text-decoration:none;margin-left:12px;font-size:11px">🗂 <span id="history-label"></span></a></div>
+  <div class="foot-meta"><a href="https://github.com/XPANDKK/ainvis-local/blob/main/LICENSE" target="_blank" rel="noopener">Apache-2.0</a> &middot; <a id="foot-terms" target="_blank" rel="noopener"></a> &middot; 2026&ensp;<a href="https://www.xpand.website/" target="_blank" rel="noopener" style="font-weight:700;letter-spacing:.06em">XPAND</a></div>
+  <div class="foot-tm" id="foot-tm"></div>
+</footer>
+
+<script>
+/* ── Persona model — authoritative display-name tables (verbatim).
+   The name ORDER is FIXED per persona across all languages (not "surname always first"):
+   Chen/Tan = surname-first; James/Dev/Zola = given-first. The cyborg alphanumeric
+   (NX3 etc.) is part of the given name. `def` = _EN_DISPLAY_NAMES (en + all non-CJK
+   fallback), and it follows the SAME per-persona order as the ja/zh entries — so a
+   given persona reads the same way in every language. Display order W·N·J·D·Z. ── */
+const PERSONAS = [
+  {id:"coo-wei",   role:"COO", initial:"W", names:{ja:"チェン・ウェイNX3",   "zh-cn":"陈薇NX3",       "zh-tw":"陳薇NX3",        "zh-hk":"陳薇NX3",        ko:"천 웨이NX3",   hi:"चेन वेईNX3",   ar:"تشين ويNX3",   bn:"চেন ওয়েইNX3",   def:"Chen WeiNX3"}},
+  {id:"cmo-nova",  role:"CMO", initial:"N", names:{ja:"タン・ノヴァDL7",      "zh-cn":"谭诺娃DL7",     "zh-tw":"譚諾娃DL7",      "zh-hk":"譚諾娃DL7",      ko:"탄 노바DL7",    hi:"तान नोवाDL7",  ar:"تان نوفاDL7",  bn:"তান নোভাDL7",   def:"Tan NovaDL7"}},
+  {id:"cfo-james", role:"CFO", initial:"J", names:{ja:"ジェームスSG5・ハート","zh-cn":"詹姆斯SG5·哈特","zh-tw":"哈特·詹姆斯SG5", "zh-hk":"哈特·詹姆斯SG5", ko:"제임스SG5 하트", hi:"जेम्सSG5 हार्ट", ar:"جيمسSG5 هارت", bn:"জেমসSG5 হার্ট", def:"JamesSG5 Hart"}},
+  {id:"cto-dev",   role:"CTO", initial:"D", names:{ja:"デヴZT1・パテル",      "zh-cn":"戴夫ZT1·帕特尔","zh-tw":"帕特爾·戴夫ZT1", "zh-hk":"帕特爾·戴夫ZT1", ko:"데브ZT1 파텔",  hi:"देवZT1 पटेल",  ar:"ديفZT1 باتيل", bn:"দেবZT1 পাটেল",  def:"DevZT1 Patel"}},
+  {id:"cxo-zola",  role:"CXO", initial:"Z", names:{ja:"ゾーラEP9・ドラミニ",  "zh-cn":"佐拉EP9·德拉米尼","zh-tw":"德拉米尼·佐拉EP9","zh-hk":"德拉米尼·佐拉EP9",ko:"졸라EP9 들라미니",hi:"ज़ोलाEP9 ड्लामिनी",ar:"زولاEP9 دلاميني",bn:"জোলাEP9 ডলামিনি",def:"ZolaEP9 Dlamini"}},
+];
+function nameOf(p,lang){ return p.names[lang] || p.names.def; }
+
+/* UI chrome strings — full localisation for ALL 44 offered languages (no English
+   fallback). Each entry: boardroom / waiting / popout / banner. CJK & Korean
+   carry no half-width space at the CJK↔Latin boundary (e.g. なAinvisへ, 갖춘Ainvis로).
+   ⚠️ Non-Recommended languages are machine-drafted and need native review before
+   public launch. */
+const UI = {
+  en:{boardroom:"Boardroom", waiting:"The board is ready. Enter a command below in Claude Code to start a meeting.", popout:"Pop out", history:"Past meetings", terms:"Terms of use", tm:"Ainvis is a trademark of XPAND K.K. \"Claude\" and \"Claude Code\" are trademarks of Anthropic; Ainvis Local is independent and not affiliated with Anthropic.", appearHere:"This is the Ainvis board log. Your meeting will appear here once it starts.", banner:"For teams — step up to Ainvis: enterprise-grade security and the full feature set →"},
+  ja:{boardroom:"ボードルーム", waiting:"取締役会の準備ができています。Claude Codeに下のコマンドを入力し、会議を始めてください。", popout:"前面に表示", history:"過去の会議", terms:"利用規約", tm:"AinvisはXPAND株式会社の商標です。「Claude」「Claude Code」はAnthropicの商標です。Ainvis Localは独立したプロダクトであり、Anthropicとは提携関係にありません。", appearHere:"ここはAinvisのボード議事ログです。会議が始まると、ここに表示されます。", banner:"チーム向けには、より高セキュリティ・高機能なAinvisへ →"},
+  "zh-cn":{boardroom:"董事会", waiting:"董事会已就绪。在Claude Code中输入下方命令即可开始会议。", popout:"弹出", tm:"Ainvis是XPAND株式会社的商标。「Claude」和「Claude Code」是Anthropic的商标；Ainvis Local是独立产品，与Anthropic无关联。", history:"历史会议", terms:"使用条款", appearHere:"这是Ainvis董事会日志。会议开始后将显示在这里。", banner:"面向团队：升级到更高安全性、功能更完整的Ainvis →"},
+  "zh-tw":{boardroom:"董事會", waiting:"董事會已就緒。在Claude Code中輸入下方指令即可開始會議。", popout:"彈出", tm:"Ainvis是XPAND株式會社的商標。「Claude」和「Claude Code」是Anthropic的商標；Ainvis Local是獨立產品，與Anthropic無關聯。", history:"歷史會議", terms:"使用條款", appearHere:"這是Ainvis董事會日誌。會議開始後將顯示在這裡。", banner:"面向團隊：升級到更高安全性、功能更完整的Ainvis →"},
+  "zh-hk":{boardroom:"董事會", waiting:"董事會已就緒。在Claude Code中輸入下方指令即可開始會議。", popout:"彈出", tm:"Ainvis是XPAND株式會社的商標。「Claude」和「Claude Code」是Anthropic的商標；Ainvis Local是獨立產品，與Anthropic無關聯。", history:"歷史會議", terms:"使用條款", appearHere:"這是Ainvis董事會日誌。會議開始後將顯示在這裡。", banner:"面向團隊：升級到更高安全性、功能更完整的Ainvis →"},
+  es:{boardroom:"Sala de juntas", waiting:"La junta está lista. Escribe un comando de abajo en Claude Code para iniciar una reunión.", popout:"Ventana flotante", tm:"Ainvis es una marca de XPAND K.K. «Claude» y «Claude Code» son marcas de Anthropic; Ainvis Local es independiente y no está afiliado a Anthropic.", history:"Reuniones anteriores", terms:"Términos de uso", appearHere:"Este es el registro del consejo de Ainvis. Tu reunión aparecerá aquí cuando comience.", banner:"¿En equipo? Pásate a Ainvis: seguridad de nivel empresarial y todas las funciones →"},
+  ko:{boardroom:"이사회실", waiting:"이사회가 준비되었습니다. Claude Code에 아래 명령을 입력해 회의를 시작하세요.", popout:"팝아웃", tm:"Ainvis는XPAND주식회사의 상표입니다. \"Claude\"와 \"Claude Code\"는Anthropic의 상표이며, Ainvis Local은 독립 제품으로Anthropic과 제휴 관계가 없습니다.", history:"지난 회의", terms:"이용약관", appearHere:"여기는 Ainvis 이사회 로그입니다. 회의가 시작되면 여기에 표시됩니다.", banner:"팀이라면 더 강력한 보안과 모든 기능을 갖춘Ainvis로 →"},
+  id:{boardroom:"Ruang Dewan", waiting:"Dewan sudah siap. Ketik perintah di bawah pada Claude Code untuk memulai rapat.", popout:"Jendela mengambang", tm:"Ainvis adalah merek dagang XPAND K.K. \"Claude\" dan \"Claude Code\" adalah merek dagang Anthropic; Ainvis Local independen dan tidak berafiliasi dengan Anthropic.", history:"Rapat sebelumnya", terms:"Ketentuan penggunaan", appearHere:"Ini log dewan Ainvis. Rapat Anda akan muncul di sini setelah dimulai.", banner:"Untuk tim: beralih ke Ainvis yang lebih aman dan lengkap →"},
+  de:{boardroom:"Sitzungssaal", waiting:"Das Gremium ist bereit. Gib unten einen Befehl in Claude Code ein, um eine Sitzung zu starten.", popout:"Abdocken", tm:"Ainvis ist eine Marke von XPAND K.K. „Claude\" und „Claude Code\" sind Marken von Anthropic; Ainvis Local ist unabhängig und nicht mit Anthropic verbunden.", history:"Frühere Sitzungen", terms:"Nutzungsbedingungen", appearHere:"Dies ist das Ainvis-Gremiumsprotokoll. Ihre Sitzung erscheint hier, sobald sie beginnt.", banner:"Für Teams: zum sichereren und voll ausgestatteten Ainvis →"},
+  fr:{boardroom:"Salle du conseil", waiting:"Le conseil est prêt. Saisissez une commande ci-dessous dans Claude Code pour lancer une réunion.", popout:"Détacher", tm:"Ainvis est une marque de XPAND K.K. « Claude » et « Claude Code » sont des marques d\'Anthropic ; Ainvis Local est indépendant et non affilié à Anthropic.", history:"Réunions passées", terms:"Conditions d'utilisation", appearHere:"Ceci est le journal du conseil Ainvis. Votre réunion apparaîtra ici une fois commencée.", banner:"Pour les équipes : passez à Ainvis, plus sûr et complet →"},
+  it:{boardroom:"Sala del consiglio", waiting:"Il consiglio è pronto. Inserisci un comando qui sotto in Claude Code per avviare una riunione.", popout:"Finestra mobile", tm:"Ainvis è un marchio di XPAND K.K. «Claude» e «Claude Code» sono marchi di Anthropic; Ainvis Local è indipendente e non affiliato ad Anthropic.", history:"Riunioni passate", terms:"Termini d'uso", appearHere:"Questo è il registro del consiglio Ainvis. La tua riunione apparirà qui una volta iniziata.", banner:"Per i team: passa ad Ainvis, più sicuro e completo →"},
+  pt:{boardroom:"Sala da diretoria", waiting:"A diretoria está pronta. Digite um comando abaixo no Claude Code para iniciar uma reunião.", popout:"Janela flutuante", tm:"Ainvis é uma marca da XPAND K.K. \"Claude\" e \"Claude Code\" são marcas da Anthropic; o Ainvis Local é independente e não é afiliado à Anthropic.", history:"Reuniões anteriores", terms:"Termos de uso", appearHere:"Este é o registro da diretoria do Ainvis. Sua reunião aparecerá aqui quando começar.", banner:"Para equipes: migre para o Ainvis, mais seguro e completo →"},
+  hi:{boardroom:"बोर्डरूम", waiting:"बोर्ड तैयार है। मीटिंग शुरू करने के लिए नीचे दिया कमांड Claude Code में डालें।", popout:"अलग विंडो", tm:"Ainvis, XPAND K.K. का ट्रेडमार्क है। \"Claude\" और \"Claude Code\" Anthropic के ट्रेडमार्क हैं; Ainvis Local स्वतंत्र है और Anthropic से संबद्ध नहीं है।", history:"पिछली बैठकें", terms:"उपयोग की शर्तें", appearHere:"यह Ainvis बोर्ड लॉग है। आपकी मीटिंग शुरू होने पर यहाँ दिखाई देगी।", banner:"टीमों के लिए: अधिक सुरक्षित और संपूर्ण Ainvis पर जाएँ →"},
+  ar:{boardroom:"قاعة المجلس", waiting:"المجلس جاهز. أدخل أحد الأوامر أدناه في Claude Code لبدء اجتماع.", popout:"نافذة منفصلة", tm:"Ainvis علامة تجارية لـ XPAND K.K. و\"Claude\" و\"Claude Code\" علامتان تجاريتان لـ Anthropic؛ وAinvis Local مستقل وغير تابع لـ Anthropic.", history:"الاجتماعات السابقة", terms:"شروط الاستخدام", appearHere:"هذا سجل مجلس Ainvis. سيظهر اجتماعك هنا بمجرد أن يبدأ.", banner:"للفِرق: انتقل إلى Ainvis الأكثر أمانًا وثراءً بالميزات ←"},
+  bn:{boardroom:"বোর্ডরুম", waiting:"বোর্ড প্রস্তুত। মিটিং শুরু করতে নিচের কমান্ড Claude Code-এ লিখুন।", popout:"আলাদা উইন্ডো", tm:"Ainvis হলো XPAND K.K.-এর ট্রেডমার্ক। \"Claude\" ও \"Claude Code\" Anthropic-এর ট্রেডমার্ক; Ainvis Local স্বাধীন এবং Anthropic-এর সাথে অধিভুক্ত নয়।", history:"আগের মিটিং", terms:"ব্যবহারের শর্তাবলী", appearHere:"এটি Ainvis বোর্ড লগ। আপনার মিটিং শুরু হলে এখানে দেখা যাবে।", banner:"দলের জন্য: আরও নিরাপদ ও পূর্ণাঙ্গ Ainvis-এ যান →"},
+  af:{boardroom:"Raadskamer", waiting:"Die raad is gereed. Tik 'n opdrag hieronder in Claude Code in om 'n vergadering te begin.", popout:"Uitspring", tm:"Ainvis is \'n handelsmerk van XPAND K.K. \"Claude\" en \"Claude Code\" is handelsmerke van Anthropic; Ainvis Local is onafhanklik en nie met Anthropic geaffilieer nie.", history:"Vorige vergaderings", terms:"Gebruiksvoorwaardes", appearHere:"Dit is die Ainvis-raadlogboek. Jou vergadering verskyn hier sodra dit begin.", banner:"Vir spanne: skuif na Ainvis — sekuriteit op ondernemingsvlak en volle funksies →"},
+  am:{boardroom:"የቦርድ ክፍል", waiting:"ቦርዱ ዝግጁ ነው። ስብሰባ ለመጀመር ከታች ያለውን ትዕዛዝ በ Claude Code ውስጥ ያስገቡ።", popout:"መስኮት አውጣ", tm:"Ainvis የ XPAND K.K. የንግድ ምልክት ነው። \"Claude\" እና \"Claude Code\" የ Anthropic የንግድ ምልክቶች ናቸው፤ Ainvis Local ራሱን የቻለ ነው እና ከ Anthropic ጋር ግንኙነት የለውም።", history:"ያለፉ ስብሰባዎች", terms:"የአጠቃቀም ውሎች", appearHere:"ይህ የ Ainvis ቦርድ መዝገብ ነው። ስብሰባዎ ሲጀምር እዚህ ይታያል።", banner:"ለቡድኖች፦ ወደ ይበልጥ ደህንነቱ የተጠበቀ Ainvis ይሂዱ →"},
+  bg:{boardroom:"Заседателна зала", waiting:"Бордът е готов. Въведете команда по-долу в Claude Code, за да започнете заседание.", popout:"Изскачащ прозорец", tm:"Ainvis е търговска марка на XPAND K.K. \"Claude\" и \"Claude Code\" са търговски марки на Anthropic; Ainvis Local е независим и не е свързан с Anthropic.", history:"Минали заседания", terms:"Условия за ползване", appearHere:"Това е дневникът на борда на Ainvis. Срещата ви ще се появи тук, щом започне.", banner:"За екипи: преминете към Ainvis — корпоративна сигурност и пълна функционалност →"},
+  cs:{boardroom:"Zasedací místnost", waiting:"Rada je připravena. Zadejte níže uvedený příkaz v Claude Code a zahajte schůzku.", popout:"Vysunout okno", tm:"Ainvis je ochranná známka společnosti XPAND K.K. „Claude\" a „Claude Code\" jsou ochranné známky společnosti Anthropic; Ainvis Local je nezávislý a není spojen s Anthropic.", history:"Předchozí schůzky", terms:"Podmínky použití", appearHere:"Toto je protokol rady Ainvis. Vaše schůzka se zde zobrazí, jakmile začne.", banner:"Pro týmy: přejděte na Ainvis — zabezpečení na podnikové úrovni a plná funkčnost →"},
+  da:{boardroom:"Bestyrelseslokale", waiting:"Bestyrelsen er klar. Indtast en kommando nedenfor i Claude Code for at starte et møde.", popout:"Pop ud", tm:"Ainvis er et varemærke tilhørende XPAND K.K. \"Claude\" og \"Claude Code\" er varemærker tilhørende Anthropic; Ainvis Local er uafhængig og ikke tilknyttet Anthropic.", history:"Tidligere møder", terms:"Vilkår for brug", appearHere:"Dette er Ainvis-bestyrelsesloggen. Dit møde vises her, når det starter.", banner:"Til teams: skift til Ainvis — sikkerhed på virksomhedsniveau og fuld funktionalitet →"},
+  nl:{boardroom:"Bestuurskamer", waiting:"Het bestuur is gereed. Typ hieronder een opdracht in Claude Code om een vergadering te starten.", popout:"Loskoppelen", tm:"Ainvis is een handelsmerk van XPAND K.K. \"Claude\" en \"Claude Code\" zijn handelsmerken van Anthropic; Ainvis Local is onafhankelijk en niet gelieerd aan Anthropic.", history:"Eerdere vergaderingen", terms:"Gebruiksvoorwaarden", appearHere:"Dit is het Ainvis-bestuurslogboek. Je vergadering verschijnt hier zodra die begint.", banner:"Voor teams: stap over naar Ainvis — beveiliging op ondernemingsniveau en alle functies →"},
+  fil:{boardroom:"Boardroom", waiting:"Handa na ang lupon. Mag-type ng utos sa ibaba sa Claude Code para magsimula ng pulong.", popout:"I-pop out", tm:"Ang Ainvis ay trademark ng XPAND K.K. Ang \"Claude\" at \"Claude Code\" ay mga trademark ng Anthropic; ang Ainvis Local ay independiyente at hindi kaugnay ng Anthropic.", history:"Mga nakaraang pulong", terms:"Mga tuntunin ng paggamit", appearHere:"Ito ang log ng lupon ng Ainvis. Lalabas dito ang pulong mo kapag nagsimula na.", banner:"Para sa mga team: lumipat sa Ainvis — enterprise-grade na seguridad at kumpletong feature →"},
+  fi:{boardroom:"Hallituksen huone", waiting:"Hallitus on valmis. Kirjoita alla oleva komento Claude Codeen aloittaaksesi kokouksen.", popout:"Irrota ikkuna", tm:"Ainvis on XPAND K.K.:n tavaramerkki. \"Claude\" ja \"Claude Code\" ovat Anthropicin tavaramerkkejä; Ainvis Local on riippumaton eikä sidoksissa Anthropiciin.", history:"Aiemmat kokoukset", terms:"Käyttöehdot", appearHere:"Tämä on Ainvisin hallituksen loki. Kokouksesi näkyy tässä, kun se alkaa.", banner:"Tiimeille: siirry Ainvisiin — yritystason tietoturva ja kaikki ominaisuudet →"},
+  el:{boardroom:"Αίθουσα συμβουλίου", waiting:"Το συμβούλιο είναι έτοιμο. Πληκτρολογήστε μια εντολή παρακάτω στο Claude Code για να ξεκινήσετε μια συνεδρίαση.", popout:"Απόσπαση", tm:"Το Ainvis είναι εμπορικό σήμα της XPAND K.K. Τα \"Claude\" και \"Claude Code\" είναι εμπορικά σήματα της Anthropic· το Ainvis Local είναι ανεξάρτητο και δεν συνδέεται με την Anthropic.", history:"Προηγούμενες συνεδριάσεις", terms:"Όροι χρήσης", appearHere:"Αυτό είναι το αρχείο του συμβουλίου Ainvis. Η συνεδρίασή σας θα εμφανιστεί εδώ μόλις ξεκινήσει.", banner:"Για ομάδες: αναβαθμιστείτε στο Ainvis — ασφάλεια επιχειρηματικού επιπέδου και πλήρεις δυνατότητες →"},
+  gu:{boardroom:"બોર્ડરૂમ", waiting:"બોર્ડ તૈયાર છે. મીટિંગ શરૂ કરવા નીચેનો આદેશ Claude Code માં લખો.", popout:"અલગ વિન્ડો", tm:"Ainvis એ XPAND K.K. નો ટ્રેડમાર્ક છે. \"Claude\" અને \"Claude Code\" Anthropic ના ટ્રેડમાર્ક છે; Ainvis Local સ્વતંત્ર છે અને Anthropic સાથે સંલગ્ન નથી.", history:"અગાઉની મીટિંગ", terms:"વપરાશની શરતો", appearHere:"આ Ainvis બોર્ડ લોગ છે. તમારી મીટિંગ શરૂ થતાં અહીં દેખાશે.", banner:"ટીમો માટે: વધુ સુરક્ષિત અને સંપૂર્ણ Ainvis પર જાઓ →"},
+  ha:{boardroom:"Dakin kwamiti", waiting:"Kwamitin yana shirye. Shigar da umarni a ƙasa cikin Claude Code don fara taro.", popout:"Fito da taga", tm:"Ainvis alama ce ta kasuwanci ta XPAND K.K. \"Claude\" da \"Claude Code\" alamomin kasuwanci ne na Anthropic; Ainvis Local mai zaman kansa ne kuma ba ya da alaƙa da Anthropic.", history:"Tarurrukan da suka gabata", terms:"Sharuɗɗan amfani", appearHere:"Wannan shi ne log ɗin kwamitin Ainvis. Taronku zai bayyana a nan da zarar ya fara.", banner:"Ga ƙungiyoyi: matsa zuwa Ainvis — tsaro na matakin kamfani da cikakkun fasali →"},
+  kn:{boardroom:"ಬೋರ್ಡ್‌ರೂಮ್", waiting:"ಮಂಡಳಿ ಸಿದ್ಧವಾಗಿದೆ. ಸಭೆ ಪ್ರಾರಂಭಿಸಲು ಕೆಳಗಿನ ಆದೇಶವನ್ನು Claude Code ನಲ್ಲಿ ಟೈಪ್ ಮಾಡಿ.", popout:"ಪ್ರತ್ಯೇಕ ವಿಂಡೋ", tm:"Ainvis ಎಂಬುದು XPAND K.K. ನ ಟ್ರೇಡ್‌ಮಾರ್ಕ್. \"Claude\" ಮತ್ತು \"Claude Code\" Anthropic ನ ಟ್ರೇಡ್‌ಮಾರ್ಕ್‌ಗಳು; Ainvis Local ಸ್ವತಂತ್ರ ಮತ್ತು Anthropic ನೊಂದಿಗೆ ಸಂಬಂಧ ಹೊಂದಿಲ್ಲ.", history:"ಹಿಂದಿನ ಸಭೆಗಳು", terms:"ಬಳಕೆ ನಿಯಮಗಳು", appearHere:"ಇದು Ainvis ಮಂಡಳಿ ಲಾಗ್. ನಿಮ್ಮ ಸಭೆ ಪ್ರಾರಂಭವಾದಾಗ ಇಲ್ಲಿ ಕಾಣಿಸುತ್ತದೆ.", banner:"ತಂಡಗಳಿಗೆ: ಹೆಚ್ಚು ಸುರಕ್ಷಿತ ಮತ್ತು ಪೂರ್ಣ Ainvis ಗೆ ಹೋಗಿ →"},
+  ms:{boardroom:"Bilik lembaga", waiting:"Lembaga sudah bersedia. Taip arahan di bawah dalam Claude Code untuk memulakan mesyuarat.", popout:"Tetingkap apung", tm:"Ainvis ialah tanda dagangan XPAND K.K. \"Claude\" dan \"Claude Code\" ialah tanda dagangan Anthropic; Ainvis Local adalah bebas dan tidak bergabung dengan Anthropic.", history:"Mesyuarat lepas", terms:"Terma penggunaan", appearHere:"Ini log lembaga Ainvis. Mesyuarat anda akan muncul di sini sebaik sahaja bermula.", banner:"Untuk pasukan: beralih ke Ainvis — keselamatan gred perusahaan dan ciri penuh →"},
+  ml:{boardroom:"ബോർഡ് റൂം", waiting:"ബോർഡ് തയ്യാറാണ്. മീറ്റിംഗ് ആരംഭിക്കാൻ താഴെയുള്ള കമാൻഡ് Claude Code-ൽ ടൈപ്പ് ചെയ്യുക.", popout:"പ്രത്യേക വിൻഡോ", tm:"Ainvis XPAND K.K.-യുടെ വ്യാപാരമുദ്രയാണ്. \"Claude\", \"Claude Code\" എന്നിവ Anthropic-ന്റെ വ്യാപാരമുദ്രകളാണ്; Ainvis Local സ്വതന്ത്രവും Anthropic-മായി ബന്ധമില്ലാത്തതുമാണ്.", history:"മുൻ മീറ്റിംഗുകൾ", terms:"ഉപയോഗ നിബന്ധനകൾ", appearHere:"ഇത് Ainvis ബോർഡ് ലോഗ് ആണ്. നിങ്ങളുടെ മീറ്റിംഗ് ആരംഭിക്കുമ്പോൾ ഇവിടെ കാണാം.", banner:"ടീമുകൾക്ക്: കൂടുതൽ സുരക്ഷിതവും പൂർണവുമായ Ainvis-ലേക്ക് മാറുക →"},
+  mr:{boardroom:"बोर्डरूम", waiting:"मंडळ तयार आहे. बैठक सुरू करण्यासाठी खालील आदेश Claude Code मध्ये टाइप करा.", popout:"वेगळी विंडो", tm:"Ainvis हे XPAND K.K. चे ट्रेडमार्क आहे. \"Claude\" आणि \"Claude Code\" Anthropic चे ट्रेडमार्क आहेत; Ainvis Local स्वतंत्र आहे आणि Anthropic शी संलग्न नाही.", history:"मागील बैठका", terms:"वापर अटी", appearHere:"हे Ainvis बोर्ड लॉग आहे. तुमची बैठक सुरू झाल्यावर इथे दिसेल.", banner:"संघांसाठी: अधिक सुरक्षित आणि संपूर्ण Ainvis वर जा →"},
+  nb:{boardroom:"Styrerom", waiting:"Styret er klart. Skriv inn en kommando nedenfor i Claude Code for å starte et møte.", popout:"Løsne vindu", tm:"Ainvis er et varemerke for XPAND K.K. \"Claude\" og \"Claude Code\" er varemerker for Anthropic; Ainvis Local er uavhengig og ikke tilknyttet Anthropic.", history:"Tidligere møter", terms:"Bruksvilkår", appearHere:"Dette er Ainvis-styreloggen. Møtet ditt vises her når det starter.", banner:"For team: bytt til Ainvis — sikkerhet på bedriftsnivå og full funksjonalitet →"},
+  pl:{boardroom:"Sala zarządu", waiting:"Zarząd jest gotowy. Wpisz poniższe polecenie w Claude Code, aby rozpocząć spotkanie.", popout:"Odłącz okno", tm:"Ainvis jest znakiem towarowym XPAND K.K. „Claude\" i „Claude Code\" są znakami towarowymi Anthropic; Ainvis Local jest niezależny i niepowiązany z Anthropic.", history:"Poprzednie spotkania", terms:"Warunki użytkowania", appearHere:"To jest dziennik zarządu Ainvis. Twoje spotkanie pojawi się tutaj po rozpoczęciu.", banner:"Dla zespołów: przejdź na Ainvis — zabezpieczenia klasy korporacyjnej i pełna funkcjonalność →"},
+  pa:{boardroom:"ਬੋਰਡਰੂਮ", waiting:"ਬੋਰਡ ਤਿਆਰ ਹੈ। ਮੀਟਿੰਗ ਸ਼ੁਰੂ ਕਰਨ ਲਈ ਹੇਠਾਂ ਦਿੱਤੀ ਕਮਾਂਡ Claude Code ਵਿੱਚ ਟਾਈਪ ਕਰੋ।", popout:"ਵੱਖਰੀ ਵਿੰਡੋ", tm:"Ainvis, XPAND K.K. ਦਾ ਟ੍ਰੇਡਮਾਰਕ ਹੈ। \"Claude\" ਅਤੇ \"Claude Code\" Anthropic ਦੇ ਟ੍ਰੇਡਮਾਰਕ ਹਨ; Ainvis Local ਸੁਤੰਤਰ ਹੈ ਅਤੇ Anthropic ਨਾਲ ਸੰਬੰਧਿਤ ਨਹੀਂ।", history:"ਪਿਛਲੀਆਂ ਮੀਟਿੰਗਾਂ", terms:"ਵਰਤੋਂ ਦੀਆਂ ਸ਼ਰਤਾਂ", appearHere:"ਇਹ Ainvis ਬੋਰਡ ਲੌਗ ਹੈ। ਤੁਹਾਡੀ ਮੀਟਿੰਗ ਸ਼ੁਰੂ ਹੋਣ 'ਤੇ ਇੱਥੇ ਦਿਖਾਈ ਦੇਵੇਗੀ।", banner:"ਟੀਮਾਂ ਲਈ: ਵਧੇਰੇ ਸੁਰੱਖਿਅਤ ਅਤੇ ਸੰਪੂਰਨ Ainvis 'ਤੇ ਜਾਓ →"},
+  sw:{boardroom:"Chumba cha bodi", waiting:"Bodi iko tayari. Andika amri iliyo hapa chini katika Claude Code ili kuanza mkutano.", popout:"Dirisha linaloelea", tm:"Ainvis ni alama ya biashara ya XPAND K.K. \"Claude\" na \"Claude Code\" ni alama za biashara za Anthropic; Ainvis Local inajitegemea na haihusiani na Anthropic.", history:"Mikutano iliyopita", terms:"Masharti ya matumizi", appearHere:"Hii ni kumbukumbu ya bodi ya Ainvis. Mkutano wako utaonekana hapa utakapoanza.", banner:"Kwa timu: hamia Ainvis — usalama wa kiwango cha biashara na vipengele kamili →"},
+  sv:{boardroom:"Styrelserum", waiting:"Styrelsen är redo. Skriv ett kommando nedan i Claude Code för att starta ett möte.", popout:"Lossa fönster", tm:"Ainvis är ett varumärke som tillhör XPAND K.K. \"Claude\" och \"Claude Code\" är varumärken som tillhör Anthropic; Ainvis Local är oberoende och inte anslutet till Anthropic.", history:"Tidigare möten", terms:"Användarvillkor", appearHere:"Detta är Ainvis styrelselogg. Ditt möte visas här när det börjar.", banner:"För team: byt till Ainvis — säkerhet i företagsklass och alla funktioner →"},
+  ta:{boardroom:"குழு அறை", waiting:"குழு தயாராக உள்ளது. கூட்டத்தைத் தொடங்க கீழே உள்ள கட்டளையை Claude Code-ல் தட்டச்சு செய்யவும்.", popout:"தனி சாளரம்", tm:"Ainvis என்பது XPAND K.K.-யின் வர்த்தக முத்திரை. \"Claude\" மற்றும் \"Claude Code\" Anthropic-ன் வர்த்தக முத்திரைகள்; Ainvis Local சுயாதீனமானது மற்றும் Anthropic-உடன் தொடர்பில்லாதது.", history:"முந்தைய கூட்டங்கள்", terms:"பயன்பாட்டு விதிமுறைகள்", appearHere:"இது Ainvis குழு பதிவு. உங்கள் கூட்டம் தொடங்கியதும் இங்கே தோன்றும்.", banner:"குழுக்களுக்கு: மேலும் பாதுகாப்பான, முழுமையான Ainvis-க்கு மாறுங்கள் →"},
+  te:{boardroom:"బోర్డ్ గది", waiting:"బోర్డు సిద్ధంగా ఉంది. సమావేశం ప్రారంభించడానికి క్రింది ఆదేశాన్ని Claude Code లో టైప్ చేయండి.", popout:"ప్రత్యేక విండో", tm:"Ainvis అనేది XPAND K.K. యొక్క ట్రేడ్‌మార్క్. \"Claude\" మరియు \"Claude Code\" Anthropic యొక్క ట్రేడ్‌మార్క్‌లు; Ainvis Local స్వతంత్రమైనది మరియు Anthropic తో అనుబంధం లేదు.", history:"గత సమావేశాలు", terms:"వినియోగ నిబంధనలు", appearHere:"ఇది Ainvis బోర్డు లాగ్. మీ సమావేశం ప్రారంభమైనప్పుడు ఇక్కడ కనిపిస్తుంది.", banner:"బృందాల కోసం: మరింత సురక్షితమైన, పూర్తి Ainvis కి మారండి →"},
+  th:{boardroom:"ห้องประชุมคณะกรรมการ", waiting:"คณะกรรมการพร้อมแล้ว พิมพ์คำสั่งด้านล่างใน Claude Code เพื่อเริ่มการประชุม", popout:"หน้าต่างลอย", tm:"Ainvis เป็นเครื่องหมายการค้าของ XPAND K.K. \"Claude\" และ \"Claude Code\" เป็นเครื่องหมายการค้าของ Anthropic; Ainvis Local เป็นอิสระและไม่เกี่ยวข้องกับ Anthropic", history:"การประชุมที่ผ่านมา", terms:"ข้อกำหนดการใช้งาน", appearHere:"นี่คือบันทึกคณะกรรมการ Ainvis การประชุมของคุณจะปรากฏที่นี่เมื่อเริ่มขึ้น", banner:"สำหรับทีม: อัปเกรดเป็น Ainvis — ความปลอดภัยระดับองค์กรและฟีเจอร์ครบครัน →"},
+  tr:{boardroom:"Yönetim odası", waiting:"Kurul hazır. Toplantı başlatmak için aşağıdaki komutu Claude Code'a yazın.", popout:"Pencereyi ayır", tm:"Ainvis, XPAND K.K. şirketinin ticari markasıdır. \"Claude\" ve \"Claude Code\" Anthropic\'in ticari markalarıdır; Ainvis Local bağımsızdır ve Anthropic ile bağlantılı değildir.", history:"Geçmiş toplantılar", terms:"Kullanım şartları", appearHere:"Bu, Ainvis kurul günlüğüdür. Toplantınız başladığında burada görünür.", banner:"Ekipler için: Ainvis'e geçin — kurumsal düzeyde güvenlik ve tüm özellikler →"},
+  uk:{boardroom:"Зала засідань", waiting:"Рада готова. Введіть команду нижче в Claude Code, щоб розпочати зустріч.", popout:"Відокремити вікно", tm:"Ainvis є торговельною маркою XPAND K.K. \"Claude\" і \"Claude Code\" є торговельними марками Anthropic; Ainvis Local незалежний і не пов’язаний з Anthropic.", history:"Минулі зустрічі", terms:"Умови використання", appearHere:"Це журнал ради Ainvis. Ваша зустріч з'явиться тут, щойно почнеться.", banner:"Для команд: перейдіть на Ainvis — безпека корпоративного рівня та повний набір функцій →"},
+  ur:{boardroom:"بورڈ روم", waiting:"بورڈ تیار ہے۔ میٹنگ شروع کرنے کے لیے نیچے دی گئی کمانڈ Claude Code میں درج کریں۔", popout:"الگ ونڈو", tm:"Ainvis، XPAND K.K. کا ٹریڈ مارک ہے۔ \"Claude\" اور \"Claude Code\" Anthropic کے ٹریڈ مارکس ہیں؛ Ainvis Local آزاد ہے اور Anthropic سے وابستہ نہیں۔", history:"پچھلی میٹنگز", terms:"استعمال کی شرائط", appearHere:"یہ Ainvis بورڈ لاگ ہے۔ آپ کی میٹنگ شروع ہونے پر یہاں ظاہر ہوگی۔", banner:"ٹیموں کے لیے: زیادہ محفوظ اور مکمل Ainvis پر جائیں →"},
+  vi:{boardroom:"Phòng họp hội đồng", waiting:"Hội đồng đã sẵn sàng. Nhập lệnh bên dưới vào Claude Code để bắt đầu cuộc họp.", popout:"Cửa sổ nổi", tm:"Ainvis là thương hiệu của XPAND K.K. \"Claude\" và \"Claude Code\" là thương hiệu của Anthropic; Ainvis Local độc lập và không liên kết với Anthropic.", history:"Cuộc họp trước", terms:"Điều khoản sử dụng", appearHere:"Đây là nhật ký hội đồng Ainvis. Cuộc họp của bạn sẽ xuất hiện ở đây khi bắt đầu.", banner:"Dành cho nhóm: chuyển sang Ainvis — bảo mật cấp doanh nghiệp và đầy đủ tính năng →"},
+  yo:{boardroom:"Yàrá ìgbìmọ̀", waiting:"Ìgbìmọ̀ ti ṣetán. Tẹ àṣẹ tó wà nísàlẹ̀ sí Claude Code láti bẹ̀rẹ̀ ìpàdé.", popout:"Ṣí fèrèsé jáde", tm:"Ainvis jẹ́ àmì-òwò XPAND K.K. \"Claude\" àti \"Claude Code\" jẹ́ àmì-òwò Anthropic; Ainvis Local dúró fúnra rẹ̀ kò sì ní ìbáṣepọ̀ pẹ̀lú Anthropic.", history:"Àwọn ìpàdé tó kọjá", terms:"Àwọn òfin ìlò", appearHere:"Èyí ni àkọsílẹ̀ ìgbìmọ̀ Ainvis. Ìpàdé rẹ yóò farahàn níbí nígbà tó bá bẹ̀rẹ̀.", banner:"Fún àwọn ẹgbẹ́: yí padà sí Ainvis — ààbò ipele ilé-iṣẹ́ àti gbogbo ẹ̀ya →"},
+  zu:{boardroom:"Igumbi lebhodi", waiting:"Ibhodi ilungile. Faka umyalo ongezansi ku-Claude Code ukuze uqale umhlangano.", popout:"Khipha iwindi", tm:"I-Ainvis iyophawu lokuhwebelana lwe-XPAND K.K. \"Claude\" ne-\"Claude Code\" ngamatreyidimakhi e-Anthropic; i-Ainvis Local izimele futhi ayihlangene ne-Anthropic.", history:"Imihlangano edlule", terms:"Imigomo yokusebenzisa", appearHere:"Leli yilogi yebhodi le-Ainvis. Umhlangano wakho uzovela lapha lapho uqala.", banner:"Emaqenjini: yedlulela ku-Ainvis — ukuphepha kwezinga lebhizinisi nezici ezigcwele →"},
+};
+const RTL = new Set(["ar","ur"]);
+function uiKey(k){ const o=UI[curLang]||UI.en; return (o && k in o) ? o[k] : UI.en[k]; }
+/* Render a speaker's message: escape HTML, then reproduce **bold** as <strong> (the md the board writes) */
+function fmt(s){ return (s||"").replace(/[&<>]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c])).replace(/\*\*([^\n*]+)\*\*/g,"<strong>$1</strong>"); }
+/* Per-turn timestamp → HH:MM for the time tier (the meeting_timestamp hook writes
+   an ISO time like 2026-06-25T10:50+09:00; minute precision is all we show). */
+function fmtTime(ts){ const m=(ts||"").match(/^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})/); return m ? (m[1]+" "+m[2]) : (ts||""); }
+
+let curLang = "en";
+let lastRaw = "";
+let lastMeetingLang = null; // the meeting language we last auto-applied; lets us follow language CHANGES without overriding a manual pick on every poll
+/* The meeting's language, from the live-log front-matter line `language: xx` (tolerates a leading UTF-8 BOM). */
+function meetingLang(md){ const m=(md||"").replace(/^﻿/,"").match(/^language:\s*([A-Za-z-]+)\s*$/m); return m ? m[1].toLowerCase() : null; }
+/* Switch the whole UI chrome to a language (if it is one we offer), keeping the
+   selector in sync. Always re-applies (no early-out) so the chrome can never
+   desync from curLang. */
+function setLang(code){ if(!code || !UI[code]) return; curLang=code; const s=document.getElementById("lang-select"); if(s) s.value=code; applyLangChrome(); }
+
+/* Copyable Claude Code commands — paste into Claude Code, no typing needed. */
+const COMMANDS = [
+  "/ainvis-local:meet ",
+];
+function addCmdChip(el, text, prepend){
+  const chip = document.createElement("div"); chip.className = "cmd-chip";
+  chip.innerHTML = `<code></code><button class="copy">Copy</button>`;
+  chip.querySelector("code").textContent = text.trim();
+  const btn = chip.querySelector("button");
+  btn.addEventListener("click", async ()=>{
+    try { await navigator.clipboard.writeText(text); }
+    catch(e){ const ta=document.createElement("textarea"); ta.value=text;
+      document.body.appendChild(ta); ta.select(); document.execCommand("copy"); ta.remove(); }
+    btn.textContent = "Copied"; btn.classList.add("done");
+    setTimeout(()=>{ btn.textContent = "Copy"; btn.classList.remove("done"); }, 1200);
+  });
+  if(prepend && el.firstChild) el.insertBefore(chip, el.firstChild); else el.appendChild(chip);
+}
+function buildCmds(){
+  const el = document.getElementById("cmds"); if(!el) return;
+  el.innerHTML = "";
+  // Just the command(s) to start a meeting. No `cd` chip: writes are
+  // auto-approved by destination, so the founder never needs to change dir.
+  COMMANDS.forEach(cmd=> addCmdChip(el, cmd, false));
+}
+
+const seatsEl = document.getElementById("seats");
+function buildSeats(){
+  seatsEl.innerHTML = "";
+  PERSONAS.forEach(p=>{
+    const s=document.createElement("div"); s.className="seat"; s.id="seat-"+p.id;
+    s.innerHTML=`<div class="avatar avatar--${p.id}">${p.initial}</div>
+      <div class="who">${nameOf(p,curLang)}<small>${p.role}</small></div>`;
+    seatsEl.appendChild(s);
+  });
+}
+function applyLangChrome(){
+  const t = UI[curLang] || UI.en;
+  document.body.setAttribute("data-lang", curLang);
+  document.body.setAttribute("dir", RTL.has(curLang) ? "rtl" : "ltr");
+  document.documentElement.lang = curLang;
+  document.title = "Ainvis Local — " + t.boardroom; // browser-tab title follows the language
+  document.getElementById("empty-text").textContent = t.waiting;
+  document.getElementById("popout-label").textContent = t.popout;
+  document.getElementById("history-label").textContent = uiKey("history");
+  var ft = document.getElementById("foot-terms");
+  if(ft){ ft.textContent = uiKey("terms"); ft.href = "https://ainvis.ai/" + curLang + "/ainvis_local/terms"; }
+  var ftm = document.getElementById("foot-tm"); if(ftm){ ftm.textContent = uiKey("tm"); }
+  document.getElementById("promo-text").textContent = t.banner;
+  buildSeats();
+  render(document, lastRaw); // re-render names in new language
+}
+
+function parseTurns(md){
+  const turns=[]; const re=/::turn::\s*([^\n|]+)\|([^\n|]+)\|([^\n|]+?)(?:\|([^\n]*))?\n([\s\S]*?)\n::end::/g;
+  let m; let topic=null;
+  const t=md.match(/^#\s*Board meeting\s*[—-]\s*(.+)$/m); if(t) topic=t[1].trim();
+  while((m=re.exec(md))!==null){ turns.push({id:m[1].trim(), name:m[2].trim(), role:m[3].trim(), ts:(m[4]||"").trim(), body:m[5].trim()}); }
+  return {turns, topic};
+}
+function render(target, md){
+  const {turns, topic} = parseTurns(md||"");
+  document.getElementById("topic").textContent = topic || ((UI[curLang]||UI.en).boardroom);
+  const log = target.querySelector ? (target.querySelector("#log") || target) : target;
+  if(!turns.length){ return; }
+  log.innerHTML="";
+  let activeId=null;
+  turns.forEach((tn,i)=>{
+    const known = PERSONAS.find(x=>x.id===tn.id);
+    const isUser = tn.id==="user";
+    const cls = known ? "avatar--"+known.id : (isUser ? "avatar--user" : "");
+    const initial = known ? known.initial : (isUser ? '<svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>' : "?");
+    const label = known ? nameOf(known,curLang) : (tn.name || tn.id);
+    const roleLabel = known ? known.role : (isUser ? "" : tn.role);
+    const meta = roleLabel ? `${label} · ${roleLabel}` : label;
+    const thinking = (tn.body||"").trim() === "@@THINKING@@";
+    const whoHTML = roleLabel ? `<span class="nm"></span><span class="rl"></span>` : `<span class="nm"></span>`;
+    const row=document.createElement("div"); row.className = isUser ? "turn turn--user" : "turn";
+    row.innerHTML = `<div class="turn-head"><div class="avatar ${cls}">${initial}</div><div class="who">${whoHTML}</div></div>`
+      + `<div class="bubble">${thinking ? '<div class="dots"><span></span><span></span><span></span></div>' : '<div class="body"></div>'}</div>`
+      + (tn.ts ? `<div class="turn-time"></div>` : ``);
+    row.querySelector(".nm").textContent = label;
+    if(roleLabel) row.querySelector(".rl").textContent = roleLabel;
+    if(!thinking) row.querySelector(".body").innerHTML = fmt(tn.body);
+    if(tn.ts) row.querySelector(".turn-time").textContent = fmtTime(tn.ts);
+    log.appendChild(row);
+    activeId = known ? known.id : null; // user/unknown turns don't highlight a seat
+  });
+  // dim non-speakers only while a meeting is live; at rest all seats stay bright
+  document.querySelectorAll(".seat").forEach(s=>{ s.classList.remove("active"); s.classList.toggle("dim", !!activeId); });
+  if(activeId){const seat=document.getElementById("seat-"+activeId); if(seat){seat.classList.add("active"); seat.classList.remove("dim");}}
+  if(log.lastElementChild) log.lastElementChild.scrollIntoView({behavior:"smooth",block:"end"});
+}
+
+async function poll(){
+  let md;
+  try {
+    const r = await fetch("/live.md?t="+Date.now());
+    md = await r.text();
+  } catch(e){ return; /* server not up yet */ }
+  // Apply the meeting language FIRST and in its own try, isolated from render():
+  // a render() error must never leave the chrome stuck on English (it did, because
+  // render ran first in the same try and threw, skipping the language update).
+  // Follow on first appearance or change; a manual pick persists until it changes.
+  try {
+    const ml = meetingLang(md);
+    if(ml && ml !== lastMeetingLang){ lastMeetingLang = ml; setLang(ml); }
+  } catch(e){}
+  if(md !== lastRaw){ lastRaw = md; try { render(document, md); } catch(e){} }
+}
+
+document.getElementById("lang-select").addEventListener("change", e=>{
+  curLang = e.target.value; applyLangChrome();
+});
+
+// Document Picture-in-Picture: compact always-on-top boardroom
+document.getElementById("popout").addEventListener("click", async ()=>{
+  if(!("documentPictureInPicture" in window)){
+    alert("This browser does not support Document Picture-in-Picture. Use Edge, Chrome, or Firefox 151+.");
+    return;
+  }
+  const pip = await documentPictureInPicture.requestWindow({width:380, height:560});
+  // Copy CSS into the PiP document by re-creating <style> elements OWNED by the
+  // PiP document (cloneNode across documents can fail to apply). cssRules carries
+  // @font-face, :root variables and every rule. Falls back to <link> for external sheets.
+  [...document.styleSheets].forEach(ss=>{
+    try{
+      const css=[...ss.cssRules].map(r=>r.cssText).join('');
+      const st=pip.document.createElement('style'); st.textContent=css;
+      pip.document.head.appendChild(st);
+    }catch(e){
+      if(ss.href){ const l=pip.document.createElement('link'); l.rel='stylesheet'; l.href=ss.href; pip.document.head.appendChild(l); }
+    }
+  });
+  pip.document.body.setAttribute("data-lang", curLang);
+  pip.document.body.setAttribute("dir", RTL.has(curLang)?"rtl":"ltr");
+  pip.document.body.style.background = getComputedStyle(document.body).background;
+  pip.document.body.innerHTML = '<main id="log" style="padding:10px"><div class="empty" id="pipempty"><strong class="ph-h"></strong><div class="ph-b" style="margin-top:6px"></div></div></main><footer style="text-align:center;font-size:10px;color:var(--text-dim);padding:4px 6px 8px">2026&ensp;<a href="https://www.xpand.website/" target="_blank" rel="noopener" style="color:inherit;font-weight:700;letter-spacing:.06em">XPAND</a></footer>';
+  pip.document.querySelector(".ph-h").textContent = (UI[curLang]||UI.en).boardroom;
+  pip.document.querySelector(".ph-b").textContent = uiKey("appearHere");
+  // Re-render only when the log actually changes (same guard as poll()); an
+  // unconditional tick wiped+rebuilt the PiP log every 1.5s, causing a strobe.
+  let pipLast = null;
+  const tick = ()=>{ if(lastRaw !== pipLast){ pipLast = lastRaw; render(pip.document, lastRaw); } };
+  tick();
+  const iv = setInterval(tick, 1500);
+  pip.addEventListener("pagehide", ()=>clearInterval(iv));
+});
+
+// A browser may restore a previously-selected option on reload WITHOUT firing
+// 'change', which would leave curLang ("en") out of sync with the selector and
+// the chrome stuck in English. Seed curLang from the selector's actual value.
+(function(){ const s=document.getElementById("lang-select"); if(s && s.value && UI[s.value]) curLang=s.value; })();
+buildCmds();
+applyLangChrome();
+setInterval(poll, 1500); poll();
+</script>
+</body>
+</html>

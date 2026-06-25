@@ -1,0 +1,19 @@
+# Fonts are served from the Ainvis CDN (https://ainvis.ai/static/fonts) and are
+# NOT redistributed. Never commit font binaries to the public repository.
+# (Futura = Bitstream perpetual licence; Source Han Sans = OFL — both CDN-delivered.)
+*.woff2
+*.woff
+*.ttf
+*.otf
+
+# Internal docs / runbooks — not distributed in the public plugin repo
+docs/
+TESTING.md
+
+# Python bytecode caches
+__pycache__/
+*.py[cod]
+
+# OS / editor noise
+.DS_Store
+Thumbs.db
