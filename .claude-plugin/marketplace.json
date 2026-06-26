@@ -4,6 +4,9 @@
     "name": "XPAND K.K.",
     "url": "https://xpand.co.jp"
   },
+  "metadata": {
+    "description": "Your AI founding team, on your own machine — the Ainvis Local plugin: a board of five executive advisors (COO/CTO/CFO/CMO/CXO) you discuss strategy with, entirely from local Markdown files. Free and open source."
+  },
   "plugins": [
     {
       "name": "ainvis-local",
