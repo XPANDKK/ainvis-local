@@ -82,6 +82,15 @@ The whole core — the five executives, discussions, minutes, decisions log and 
 
 > An optional local voice capability (speech-in / speech-out) is under consideration, not yet decided.
 
+## Permissions & privacy
+
+Ainvis Local is local-first: no telemetry, and nothing is sent to our servers — the only outbound LLM traffic is your own Claude API, through your own Claude Code.
+
+- **The boardroom viewer is not connected to Claude.** It is a read-only local renderer — a Python standard-library web server bound to `127.0.0.1` that serves the page and your meeting's local Markdown. It never connects to Claude, never reads your Claude credentials, and makes no Anthropic API calls; Claude Code writes the log, the viewer only displays it (one-way).
+- **Scoped auto-approval.** A bundled hook auto-approves only reads/writes inside your Ainvis Local workspace (the folder tree containing `decisions.md`) and the launches of the five board personas — nothing else. It excludes `.git`/`.claude` and never blocks Claude Code's normal permission flow.
+
+See [SECURITY.md](SECURITY.md) for the full detail.
+
 ## Uninstall
 
 In Claude Code:
